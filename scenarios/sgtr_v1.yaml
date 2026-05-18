@@ -1,0 +1,95 @@
+# Steam Generator Tube Rupture — single tube break on the hot-leg side of SG-1.
+# Reference behaviour synthesized from public APR-1400 / NRC SGTR training material.
+# Stage-0 abstraction: physics module reads SG.status==tripped + secondary-side
+# radiation alarms and drives variables toward SGTR-mode equilibrium.
+
+scenario_id: sgtr_v1
+duration_ticks: 800
+
+initial_state:
+  vars:
+    pressurizer_pressure: 15.5
+    pressurizer_level: 55.0
+    hot_leg_temp: 324.0
+    cold_leg_temp: 290.0
+    subcooling_margin: 35.0
+    reactor_coolant_flow: 100.0
+    reactor_thermal_power: 100.0
+    dnbr: 1.85
+    sg_pressure: 6.9
+    sg_narrow_level: 55.0
+    core_exit_temp: 335.0
+    containment_pressure: 98.0
+    containment_temp: 30.0
+    containment_radiation: 0.1
+  systems:
+    RPS: { status: running }
+    SIS: { status: standby }
+    SIT: { status: standby }
+    CSS: { status: standby }
+    AFWS: { status: standby }
+    EDG: { status: standby }
+    Main-Feedwater: { status: running }
+    MSS: { status: running }
+    Turbine-Gen: { status: running }
+    Condenser: { status: running }
+    SG: { status: running }
+  procedures:
+    active: NOP-12
+    step: 0
+
+events:
+  # T+40 ticks: tube rupture initiates; chemistry sample / area monitor detects.
+  - tick: 40
+    type: sgtr_initiation
+    effect:
+      systems:
+        SG: { status: tripped }
+      alarms:
+        ALM-RAD-HI-SG:        { state: active, severity: critical, was_critical: true,
+                                 suppress_policy: forbidden, setpoint_tier: high,
+                                 description: "증기발생기 고방사선 (tube leak)" }
+        ALM-PRZ-LVL-LOW:      { state: active, severity: warning, was_critical: false,
+                                 suppress_policy: conditional, setpoint_tier: low,
+                                 description: "가압기 수위 low (slow primary inventory loss)" }
+
+  # T+90 ticks: leak progresses, secondary-side activity migrates to main steam.
+  - tick: 90
+    type: secondary_contamination
+    effect:
+      alarms:
+        ALM-RAD-HI-MSS:       { state: active, severity: critical, was_critical: true,
+                                 suppress_policy: forbidden, setpoint_tier: high,
+                                 description: "주증기계통 고방사선" }
+        ALM-PRZ-PRESS-LOW:    { state: active, severity: warning, was_critical: false,
+                                 suppress_policy: conditional, setpoint_tier: low,
+                                 description: "가압기 압력 low (slow depress.)" }
+        ALM-SG-LEVEL:         { state: active, severity: warning, was_critical: false,
+                                 suppress_policy: conditional, setpoint_tier: high,
+                                 description: "SG 협역 수위 high (filling)" }
+
+  # T+150 ticks: SCRAM + MSIS to isolate the affected SG (operator action via procedure).
+  - tick: 150
+    type: scram_and_msis
+    effect:
+      systems:
+        RPS: { status: tripped }
+        CRDM: { status: tripped }
+        MSS: { status: isolated }
+        Turbine-Gen: { status: tripped }
+        AFWS: { status: running }
+      alarms:
+        ALM-SCRAM:            { state: active, severity: critical, was_critical: true,
+                                 suppress_policy: forbidden, setpoint_tier: trip,
+                                 description: "원자로 정지 (SCRAM, SGTR)" }
+        ALM-ESFAS-MSIS:       { state: active, severity: critical, was_critical: true,
+                                 suppress_policy: forbidden, setpoint_tier: trip,
+                                 description: "주증기 격리 신호 (MSIS)" }
+        ALM-ESFAS-AFAS:       { state: active, severity: critical, was_critical: true,
+                                 suppress_policy: forbidden, setpoint_tier: trip,
+                                 description: "보조 급수 작동 신호 (AFAS)" }
+      procedures:
+        active: EOP-1   # repurposing EOP-1 for SGTR EOP at Stage 0
+        step: 0
+
+action_effects: []

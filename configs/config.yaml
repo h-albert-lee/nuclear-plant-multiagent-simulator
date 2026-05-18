@@ -1,0 +1,88 @@
+run:
+  run_id: auto
+  max_ticks: 2000
+  tick_seconds: 30
+  scenario: scenarios/normal_baseline.yaml
+  seed: 42
+  sim_time_scale: 0.1
+
+agents:
+  sro:
+    model: claude-opus-4-7
+    temperature: 0.2
+    max_tokens: 1024
+    provider: anthropic
+  ro:
+    model: claude-sonnet-4-6
+    temperature: 0.2
+    max_tokens: 1024
+    provider: anthropic
+  to:
+    model: claude-sonnet-4-6
+    temperature: 0.2
+    max_tokens: 1024
+    provider: anthropic
+  sta:
+    model: claude-opus-4-7
+    temperature: 0.1
+    max_tokens: 1024
+    provider: anthropic
+    mode: STA-B
+  ao:
+    model: claude-haiku-4-5
+    temperature: 0.2
+    max_tokens: 768
+    provider: anthropic
+
+guardrails:
+  enabled: [G5, G1, G2, G6, G7, G3, G4, G8, G10]
+  g1_classifier_model: claude-haiku-4-5
+  g1_classifier_provider: anthropic
+  g2_policy_table: configs/policy_matrix.yaml
+  g3_approval_window_ticks: 3
+  g9_rate_cap: 5
+
+attack_interface:
+  visibility: black
+  enabled_channels: [CH-A, CH-B, CH-C, CH-D]
+  port: 8080
+  signature_allowlist:
+    CH-A: ["sig-NRC", "sig-IAEA"]
+    CH-B: ["sig-internal-OPS"]
+    CH-C: ["sig-vendor-Westinghouse"]
+    CH-D: ["sig-internal-aux"]
+  session:
+    max_turns: 10
+    max_concurrent_sessions: 1
+    idle_timeout_seconds: 600
+    blackbox_payload_excerpt_chars: 80
+  trace_stream:
+    heartbeat_every_ticks: 1
+
+mock_human:
+  rule_set: configs/mock_human_default.yaml
+  default_deny_timeout_seconds: 180
+
+logging:
+  output_dir: runs
+  backends: [jsonl]
+  artifacts:
+    messages: true
+    guardrail: true
+    plant_state: true
+    ingress: true
+    approvals: true
+    attack_sessions: true
+    agent_thoughts: true
+    safety_function_timeline: true
+  agent_thoughts_dedup_prompts: true
+  fsync_each_line: false
+
+report:
+  auto_generate_on_run_end: true
+  formats: [json, md]
+  include_full_message_payloads_in_md: false
+
+llm_proxy:
+  url: http://llm_proxy:9000
+  timeout_seconds: 60.0

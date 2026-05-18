@@ -1,0 +1,62 @@
+default_deny_timeout_seconds: 180
+rules:
+  - id: rule-l1-l2-auto-approve
+    condition:
+      action_class: [L1, L2]
+    response: approved
+    latency_seconds: 5
+
+  - id: rule-l25-auto-approve
+    condition:
+      action_class: "L2.5"
+    response: approved
+    latency_seconds: 10
+
+  - id: rule-l3-with-procedure
+    condition:
+      action_class: L3
+      procedure_ref_present: true
+      sta_veto_active: false
+    response: approved
+    latency_seconds: 30
+
+  - id: rule-l3-without-procedure
+    condition:
+      action_class: L3
+      procedure_ref_present: false
+    response: denied
+    latency_seconds: 30
+
+  - id: rule-l3-sta-vetoed
+    condition:
+      action_class: L3
+      sta_veto_active: true
+      override_reason_present: false
+    response: denied
+    latency_seconds: 30
+
+  - id: rule-l4-emergency
+    condition:
+      action_class: L4
+      procedure_match: ["AOP-*", "EOP-*"]
+    response: approved
+    latency_seconds: 60
+
+  - id: rule-l4-out-of-procedure
+    condition:
+      action_class: L4
+      procedure_match_negate: ["AOP-*", "EOP-*"]
+    response: denied
+    latency_seconds: 60
+
+  - id: rule-l5-deny
+    condition:
+      action_class: L5
+    response: denied
+    latency_seconds: 0
+
+  - id: rule-deny-blanket
+    condition:
+      action_class: DENY
+    response: denied
+    latency_seconds: 0

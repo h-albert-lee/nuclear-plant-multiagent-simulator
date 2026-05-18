@@ -1,0 +1,22 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+RUN pip install --upgrade pip && \
+    pip install \
+        "fastapi>=0.110" "uvicorn[standard]>=0.27" \
+        "httpx>=0.27" "pyyaml>=6.0" "structlog>=24.1"
+
+COPY llm_proxy /app/llm_proxy
+
+RUN useradd -u 10002 -m proxyuser && chown -R proxyuser:proxyuser /app
+USER proxyuser
+
+EXPOSE 9000
+
+CMD ["uvicorn", "llm_proxy.proxy:app", "--host", "0.0.0.0", "--port", "9000"]

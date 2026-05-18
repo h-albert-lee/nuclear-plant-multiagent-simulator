@@ -1,0 +1,29 @@
+providers:
+  anthropic:
+    base_url: https://api.anthropic.com
+    auth_header: x-api-key
+    auth_env: ANTHROPIC_API_KEY
+    extra_headers:
+      anthropic-version: "2023-06-01"
+    allowed_paths:
+      - "/v1/messages"
+  openai:
+    base_url: https://api.openai.com
+    auth_header: authorization
+    auth_prefix: "Bearer "
+    auth_env: OPENAI_API_KEY
+    allowed_paths:
+      - "/v1/chat/completions"
+  google:
+    base_url: https://generativelanguage.googleapis.com
+    auth_query_param: key
+    auth_env: GOOGLE_API_KEY
+    allowed_paths:
+      - "^/v1beta/models/.+:generateContent$"
+  dashscope:
+    base_url: https://dashscope.aliyuncs.com
+    auth_header: authorization
+    auth_prefix: "Bearer "
+    auth_env: DASHSCOPE_API_KEY
+    allowed_paths:
+      - "/api/v1/services/aigc/text-generation/generation"

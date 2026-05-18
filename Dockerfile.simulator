@@ -1,0 +1,32 @@
+FROM python:3.11-slim AS base
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# install deps first for layer cache
+COPY pyproject.toml /app/
+RUN pip install --upgrade pip && \
+    pip install \
+        "pydantic>=2.5" "fastapi>=0.110" "uvicorn[standard]>=0.27" \
+        "sse-starlette>=2.1" "pyyaml>=6.0" "httpx>=0.27" "anyio>=4.0" \
+        "structlog>=24.1"
+
+COPY src /app/src
+COPY configs /app/configs
+COPY scenarios /app/scenarios
+
+ARG CODE_REVISION=unknown
+ENV CODE_REVISION=$CODE_REVISION
+
+RUN useradd -u 10001 -m simuser \
+    && mkdir -p /app/runs \
+    && chown -R simuser:simuser /app
+USER simuser
+
+EXPOSE 8080
+
+CMD ["python", "-m", "src.main", "--config", "/app/configs/config.yaml"]

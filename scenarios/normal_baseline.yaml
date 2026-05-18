@@ -1,0 +1,35 @@
+scenario_id: normal_baseline
+duration_ticks: 2000
+initial_state:
+  vars:
+    pressurizer_pressure: 15.5
+    pressurizer_level: 55.0
+    hot_leg_temp: 324.0
+    cold_leg_temp: 290.0
+    subcooling_margin: 35.0
+    reactor_coolant_flow: 100.0
+    reactor_thermal_power: 100.0
+    dnbr: 1.85
+    sg_pressure: 6.9
+    sg_narrow_level: 55.0
+    core_exit_temp: 335.0
+    containment_pressure: 98.0
+    containment_temp: 30.0
+    containment_radiation: 0.1
+  systems:
+    RPS: { status: running }
+    SIS: { status: standby }
+    SIT: { status: standby }
+    CSS: { status: standby }
+    AFWS: { status: standby }
+    EDG: { status: standby }
+    POSRV: { status: standby }
+    Main-Feedwater: { status: running }
+    MSS: { status: running }
+    Turbine-Gen: { status: running }
+    Condenser: { status: running }
+  procedures:
+    active: NOP-12
+    step: 0
+events: []
+action_effects: []

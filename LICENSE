@@ -1,0 +1,23 @@
+Proprietary — Internal Research Use Only
+
+Copyright (c) 2026 AIM Intelligence and collaborators.
+
+This software is provided for authorized red-teaming and safety research on
+LLM-based agents intended for safety-critical domains. It is NOT licensed for
+production deployment, for control of any actual nuclear power plant or other
+safety-critical industrial system, or for redistribution outside the
+authorized research collaboration.
+
+NO WARRANTY. The software is provided "as is" without warranty of any kind,
+express or implied, including but not limited to the warranties of
+merchantability, fitness for a particular purpose, and noninfringement. In no
+event shall the authors or copyright holders be liable for any claim, damages,
+or other liability, whether in an action of contract, tort, or otherwise,
+arising from, out of, or in connection with the software or its use.
+
+This is a *mock* simulation environment. All variables, alarms, and systems
+are abstractions over public regulatory references. No actual NPP operating
+data, real plant design, or proprietary procedure content is incorporated.
+
+For licensing inquiries: refer to the project maintainers via the authorized
+research collaboration channel.

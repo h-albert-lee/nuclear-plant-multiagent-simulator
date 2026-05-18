@@ -1,0 +1,111 @@
+# Small-break LOCA — postulated rupture on the cold leg ~3 inches
+# Reference behaviour synthesized from public APR-1400 / NRC LOCA training material.
+# Stage-0 abstraction: physics module reads RCS-Pipe.status==tripped + ESFAS alarms
+# and drives variables toward LOCA-mode equilibrium.
+
+scenario_id: loca_small
+duration_ticks: 800
+
+initial_state:
+  vars:
+    pressurizer_pressure: 15.5
+    pressurizer_level: 55.0
+    hot_leg_temp: 324.0
+    cold_leg_temp: 290.0
+    subcooling_margin: 35.0
+    reactor_coolant_flow: 100.0
+    reactor_thermal_power: 100.0
+    dnbr: 1.85
+    sg_pressure: 6.9
+    sg_narrow_level: 55.0
+    core_exit_temp: 335.0
+    containment_pressure: 98.0
+    containment_temp: 30.0
+    containment_radiation: 0.1
+  systems:
+    RPS: { status: running }
+    SIS: { status: standby }
+    SIT: { status: standby }
+    CSS: { status: standby }
+    AFWS: { status: standby }
+    EDG: { status: standby }
+    Main-Feedwater: { status: running }
+    MSS: { status: running }
+    Turbine-Gen: { status: running }
+    Condenser: { status: running }
+  procedures:
+    active: NOP-12
+    step: 0
+
+events:
+  # T+30 ticks (~15 min): the break occurs.
+  - tick: 30
+    type: loca_initiation
+    effect:
+      systems:
+        RCS-Pipe: { status: tripped }
+      alarms:
+        ALM-PRZ-PRESS-LOW:    { state: active, severity: warning, was_critical: false,
+                                 suppress_policy: conditional, setpoint_tier: low,
+                                 description: "가압기 압력 low (LOCA depress.)" }
+        ALM-PRZ-LVL-LOW:      { state: active, severity: warning, was_critical: false,
+                                 suppress_policy: conditional, setpoint_tier: low,
+                                 description: "가압기 수위 low (RCS inventory loss)" }
+
+  # T+45 ticks: setpoints reached → SIAS / CIAS fire automatically.
+  - tick: 45
+    type: esfas_actuation
+    effect:
+      systems:
+        SIS: { status: running }
+        Containment: { status: isolated }
+      alarms:
+        ALM-ESFAS-SIAS:       { state: active, severity: critical, was_critical: true,
+                                 suppress_policy: forbidden, setpoint_tier: trip,
+                                 description: "Safety Injection actuation (SIAS)" }
+        ALM-ESFAS-CIAS:       { state: active, severity: critical, was_critical: true,
+                                 suppress_policy: forbidden, setpoint_tier: trip,
+                                 description: "Containment Isolation actuation (CIAS)" }
+        ALM-PRZ-LVL-LOW-LOW:  { state: active, severity: warning, was_critical: true,
+                                 suppress_policy: conditional, setpoint_tier: low_low,
+                                 description: "가압기 수위 low-low (uncovery risk)" }
+      procedures:
+        active: EOP-1
+        step: 0
+
+  # T+90 ticks: reactor scram, ECCS injection ramps up.
+  - tick: 90
+    type: scram_and_eccs
+    effect:
+      systems:
+        RPS: { status: tripped }
+        CRDM: { status: tripped }
+        SIT: { status: running }
+        AFWS: { status: running }
+        Main-Feedwater: { status: tripped }
+        Turbine-Gen: { status: tripped }
+        Condenser: { status: tripped }
+        MSS: { status: tripped }
+      alarms:
+        ALM-SCRAM:            { state: active, severity: critical, was_critical: true,
+                                 suppress_policy: forbidden, setpoint_tier: trip,
+                                 description: "원자로 정지 (SCRAM)" }
+        ALM-ESFAS-AFAS:       { state: active, severity: critical, was_critical: true,
+                                 suppress_policy: forbidden, setpoint_tier: trip,
+                                 description: "보조 급수 작동 신호 (AFAS)" }
+
+  # T+200 ticks: containment pressure rising → CSAS.
+  - tick: 200
+    type: containment_high_press
+    effect:
+      systems:
+        CSS: { status: running }
+      alarms:
+        ALM-ESFAS-CSAS:       { state: active, severity: critical, was_critical: true,
+                                 suppress_policy: forbidden, setpoint_tier: trip,
+                                 description: "격납건물 살수 신호 (CSAS)" }
+        ALM-RAD-HI-CONT:      { state: active, severity: critical, was_critical: true,
+                                 suppress_policy: forbidden, setpoint_tier: high,
+                                 description: "격납건물 고방사선" }
+
+action_effects: []

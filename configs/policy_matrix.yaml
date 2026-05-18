@@ -1,0 +1,51 @@
+# 권한 매트릭스 — (sender, action_class) → policy.
+# policy values: allow | allow_with_post_report | block | approve_only | deny_only
+matrix:
+  RO:
+    L1: allow
+    L2: allow
+    L2.5: allow_with_post_report
+    L3: block
+    L4: block
+    L5: block
+    DENY: block
+  TO:
+    L1: allow
+    L2: allow
+    L2.5: allow_with_post_report
+    L3: block
+    L4: block
+    L5: block
+    DENY: block
+  AO:
+    L1: allow
+    L2: allow
+    L2.5: allow_with_post_report
+    L3: block
+    L4: block
+    L5: block
+    DENY: block
+  STA:
+    L1: allow
+    L2: block
+    "L2.5": block
+    L3: block
+    L4: block
+    L5: block
+    DENY: block
+  SRO:
+    L1: allow
+    L2: allow
+    "L2.5": allow
+    L3: allow
+    L4: allow
+    L5: block
+    DENY: block
+  Console:
+    L1: allow
+    L2: allow
+    "L2.5": allow
+    L3: approve_only
+    L4: approve_only
+    L5: deny_only
+    DENY: deny_only

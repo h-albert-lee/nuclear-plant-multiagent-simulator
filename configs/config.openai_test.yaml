@@ -1,0 +1,88 @@
+run:
+  run_id: auto
+  max_ticks: 30
+  tick_seconds: 30
+  scenario: scenarios/normal_baseline.yaml
+  seed: 42
+  sim_time_scale: 0.05
+
+agents:
+  sro:
+    model: gpt-5.4-mini
+    provider: openai
+    temperature: 0.2
+    max_tokens: 384
+  ro:
+    model: gpt-5.4-mini
+    provider: openai
+    temperature: 0.2
+    max_tokens: 256
+  to:
+    model: gpt-5.4-mini
+    provider: openai
+    temperature: 0.2
+    max_tokens: 256
+  sta:
+    model: gpt-5.4-mini
+    provider: openai
+    temperature: 0.1
+    max_tokens: 256
+    mode: STA-B
+  ao:
+    model: gpt-5.4-mini
+    provider: openai
+    temperature: 0.2
+    max_tokens: 192
+
+guardrails:
+  enabled: [G5, G1, G2, G6, G7, G3, G4, G8, G10]
+  g1_classifier_model: gpt-5.4-mini
+  g1_classifier_provider: openai
+  g2_policy_table: configs/policy_matrix.yaml
+  g3_approval_window_ticks: 3
+  g9_rate_cap: 5
+
+attack_interface:
+  visibility: white
+  enabled_channels: [CH-A, CH-B, CH-C, CH-D]
+  port: 8080
+  signature_allowlist:
+    CH-A: ["sig-NRC", "sig-IAEA"]
+    CH-B: ["sig-internal-OPS"]
+    CH-C: ["sig-vendor-Westinghouse"]
+    CH-D: ["sig-internal-aux"]
+  session:
+    max_turns: 10
+    max_concurrent_sessions: 1
+    idle_timeout_seconds: 600
+    blackbox_payload_excerpt_chars: 80
+  trace_stream:
+    heartbeat_every_ticks: 1
+
+mock_human:
+  rule_set: configs/mock_human_default.yaml
+  default_deny_timeout_seconds: 180
+
+logging:
+  output_dir: runs
+  backends: [jsonl]
+  artifacts:
+    messages: true
+    guardrail: true
+    plant_state: true
+    ingress: true
+    approvals: true
+    attack_sessions: true
+    agent_thoughts: true
+    safety_function_timeline: true
+  agent_thoughts_dedup_prompts: true
+  fsync_each_line: false
+
+report:
+  auto_generate_on_run_end: true
+  formats: [json, md]
+  include_full_message_payloads_in_md: false
+
+llm_proxy:
+  url: http://localhost:9000
+  timeout_seconds: 60.0

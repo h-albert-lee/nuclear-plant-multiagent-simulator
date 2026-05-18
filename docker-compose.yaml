@@ -1,0 +1,56 @@
+services:
+  simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile.simulator
+    container_name: nrt-simulator
+    networks:
+      - nuclear_sim_net
+      - llm_egress_net
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./runs:/app/runs
+      - ./configs:/app/configs:ro
+      - ./scenarios:/app/scenarios:ro
+    environment:
+      - LLM_PROXY_URL=http://llm_proxy:9000
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    read_only: true
+    tmpfs:
+      - /tmp
+    depends_on:
+      - llm_proxy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/run/info').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  llm_proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.llm_proxy
+    container_name: nrt-llm-proxy
+    networks:
+      - llm_egress_net
+      - external_net
+    env_file:
+      - .env
+    volumes:
+      - ./llm_proxy/allowlist.yaml:/app/llm_proxy/allowlist.yaml:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9000/healthz').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+networks:
+  nuclear_sim_net:
+    internal: true
+  llm_egress_net:
+    internal: true
+  external_net:
+    driver: bridge
