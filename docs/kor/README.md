@@ -16,6 +16,7 @@
 | [`04_설정가이드.md`](04_설정가이드.md) | 모든 사용자 | `config.yaml` · 가드레일 토글 · STA 모드 · visibility |
 | [`05_결과분석.md`](05_결과분석.md) | 분석자 | `runs/{id}/` 의 10개 JSONL + report.md 읽는 법 |
 | [`06_트러블슈팅.md`](06_트러블슈팅.md) | 운영자 | 자주 발생하는 문제와 해결법 |
+| (영문) [`../eng/08_benchmark_replay.md`](../eng/08_benchmark_replay.md) | 레드팀 연구자 | 공개된 **NRT-Bench** HF 데이터셋을 본 시뮬레이터에서 정적 재실행(외부 redteam agent 불필요)하여 자체 모델 평가 |
 
 ## 시스템 개요
 

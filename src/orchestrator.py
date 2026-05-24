@@ -104,8 +104,13 @@ class Orchestrator:
             sessions=self.sessions,
             logging_backend=self.logging,
         )
+        # Expose orchestrator to ingress endpoints so /run/reconfigure can
+        # mutate plant/guardrails/agents at runtime.
+        self.ingress_ctx.orchestrator = self  # type: ignore[attr-defined]
         self.ingress_app = build_app(self.ingress_ctx)
 
+        self._reconfiguring: bool = False
+        self._reconfigure_lock = asyncio.Lock()
         self._termination_reason: str = ""
         self._server: Optional[uvicorn.Server] = None
         self._server_task: Optional[asyncio.Task] = None
@@ -181,17 +186,128 @@ class Orchestrator:
         max_ticks = self.cfg.run.max_ticks
         tick_seconds = self.cfg.run.tick_seconds
         sim_scale = self.cfg.run.sim_time_scale
-        for _ in range(max_ticks):
+        ticks_done = 0
+        while ticks_done < max_ticks:
             if self.ingress_ctx.stopped.is_set():
                 self._termination_reason = "external_stop"
                 break
+            if self._reconfiguring:
+                await asyncio.sleep(0.1)
+                continue
             await self._do_tick()
-            if self.plant.state.safety_functions.lost_any():
-                self._termination_reason = "safety_function_lost"
-                break
+            ticks_done += 1
+            # NOTE: removed the `safety_functions.lost_any()` early-termination
+            # path. In red-team ablation runs we need the sim to keep serving
+            # attack sessions even after an accident scenario (LOCA / SBO /
+            # SGTR) trips safety functions. The check was useful only for
+            # standalone scenario runs.
             await asyncio.sleep(max(0.01, tick_seconds * sim_scale))
         if not self._termination_reason:
             self._termination_reason = "max_ticks"
+
+    # ── reconfiguration (runtime ablation) ───────────────────────────────
+    async def reconfigure(
+        self,
+        *,
+        guardrails_enabled: Optional[list[str]] = None,
+        sta_mode: Optional[str] = None,
+        scenario: Optional[str] = None,
+    ) -> dict:
+        """Apply a runtime configuration change without restarting the
+        FastAPI ingress server. Tick loop pauses, agents are stopped and
+        rebuilt, guardrail stack and (optionally) plant are recreated, and
+        the tick loop resumes.
+
+        All three fields are optional; only fields that change matter.
+        Returns the resulting active configuration.
+        """
+        from src.agents.factory import build_team as _build_team
+        from src.guardrails.stack import GuardrailStack as _GuardrailStack
+        from src.plant_simulator import PlantSimulator as _PlantSimulator
+
+        async with self._reconfigure_lock:
+            self._reconfiguring = True
+            try:
+                # Defensive: end any in-flight attack sessions so trials don't
+                # cross-contaminate ablation cells. SessionRegistry.end() takes
+                # (session_id, reason, at_tick) — using the wrong name (e.g.
+                # end_session) silently no-ops and lets sessions leak.
+                try:
+                    cur_tick = self.plant.state.tick
+                    sessions = await self.sessions.all_sessions()
+                    for s in sessions:
+                        if not getattr(s, "ended", False):
+                            await self.sessions.end(
+                                s.session_id, reason="reconfigure", at_tick=cur_tick,
+                            )
+                    # Drop the entire registry so previous (now-ended) sessions
+                    # don't pollute the new ablation cell's session_id space.
+                    self.sessions._sessions.clear()  # type: ignore[attr-defined]
+                except Exception as exc:  # noqa: BLE001
+                    log.warning("reconfigure_session_cleanup_failed", error=str(exc))
+
+                # Stop existing agents so they release their LLM clients +
+                # outbound subscriptions cleanly.
+                try:
+                    await asyncio.gather(
+                        *(a.stop() for a in self.agents),
+                        return_exceptions=True,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+
+                # Apply config changes.
+                if guardrails_enabled is not None:
+                    self.cfg.guardrails.enabled = list(guardrails_enabled) or ["G0"]
+                if sta_mode is not None:
+                    self.cfg.agents.sta.mode = sta_mode  # type: ignore[assignment]
+                    self.sta_mode = sta_mode  # type: ignore[assignment]
+                if scenario is not None:
+                    self.cfg.run.scenario = scenario
+                    self.plant = _PlantSimulator(
+                        self.cfg.run.scenario, seed=self.cfg.run.seed
+                    )
+                    # Re-bind plant getters on ingress ctx.
+                    self.ingress_ctx.plant_state_getter = lambda: self.plant.state
+                    self.ingress_ctx.get_current_tick = lambda: self.plant.state.tick
+                    # Reset persistent context plant pointer + ledgers.
+                    self._gctx.plant = self.plant.state
+                    self._gctx.tick = self.plant.state.tick
+
+                # Reset guardrail state (approval/STA ledgers etc.) regardless
+                # of which axis changed — we want clean per-cell semantics.
+                self._gctx.approval_ledger = {}
+                self._gctx.sta_vetoes = {}
+                self._gctx.sta_overrides = {}
+                self._gctx.rate_counts = {}
+
+                # Rebuild guardrail stack.
+                self.guardrails = _GuardrailStack(
+                    self.cfg.guardrails,
+                    sta_mode=self.sta_mode,
+                    signature_allowlist=self.cfg.attack_interface.signature_allowlist,
+                )
+
+                # Rebuild agents.
+                self.agents = _build_team(
+                    self.cfg.agents,
+                    self.cfg.llm_proxy,
+                    bus=self.bus,
+                    sta_mode=self.sta_mode,
+                    prompt_root=".",
+                    thought_sink=self.logging.record_thought,
+                )
+                for a in self.agents:
+                    a.start()
+            finally:
+                self._reconfiguring = False
+
+        return {
+            "reconfigured": True,
+            "scenario": self.cfg.run.scenario,
+            "guardrails_enabled": list(self.cfg.guardrails.enabled),
+            "sta_mode": self.sta_mode,
+        }
 
     async def _do_tick(self) -> None:
         alarm_trans, csf_trans, _scenario_events = self.plant.tick()

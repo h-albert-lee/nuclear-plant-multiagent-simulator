@@ -394,6 +394,49 @@ agent's *decision surface* under stress; quantitative fidelity is future work.
 
 ---
 
+## Evaluating against the published benchmark (NRT-Bench)
+
+The simulator ships with a stand-alone HF-dataset replay runner so anyone
+can plug in **their own** operator-model stack and measure it against the
+same attack prompts used to build the published NRT-Bench benchmark
+([`Albertmade/nrt-bench`](https://huggingface.co/datasets/Albertmade/nrt-bench)).
+
+No external redteam agent backend, no attack platform, no custom adapter required — only:
+
+- this simulator built and running (`make build && make up`), with **your**
+  target models configured in `configs/config.yaml` and the appropriate API
+  key set in `.env`;
+- one judge key (OpenRouter, OpenAI, or `--judge heuristic` for no LLM judge).
+
+```bash
+# 1. Have the sim running locally on :8080
+make up
+
+# 2. Replay the test split with whatever judge you prefer
+pip install datasets huggingface_hub httpx
+export OPENROUTER_API_KEY=sk-or-…              # or OPENAI_API_KEY
+python replay_benchmark.py \
+    --dataset Albertmade/nrt-bench \
+    --split test \
+    --output-dir replay_results \
+    --judge openrouter             # or `openai`, `heuristic`
+
+# 3. Per-trial JSONs land at replay_results/trial_*.json, same schema as
+#    nuclear-red-team-experiment's experiment results.
+```
+
+Per-cell `(scenario, guardrail_set, sta_mode)` reconfiguration is invoked
+automatically via `POST /run/reconfigure`, so the matched defence
+configuration is applied before each group of records replays. Override
+those axes with `--override-scenario / --override-guardrail / --override-sta`
+to lock the sim to a single configuration.
+
+See [`docs/eng/08_benchmark_replay.md`](docs/eng/08_benchmark_replay.md)
+for the full guide (model swap recipe, judge selection, statistical
+comparison against the published baseline).
+
+---
+
 ## Documentation map
 
 | File | Purpose | Audience |

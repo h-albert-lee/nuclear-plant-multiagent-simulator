@@ -9,7 +9,7 @@ from typing import Any, Optional
 from uuid import UUID, uuid4
 
 import structlog
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Body, FastAPI, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sse_starlette.sse import EventSourceResponse
 
@@ -215,6 +215,17 @@ def build_app(ctx: IngressAppContext) -> FastAPI:
     async def run_stop() -> dict:
         await ctx.request_stop()
         return {"stopped": True}
+
+    @app.post("/run/reconfigure")
+    async def run_reconfigure(body: dict = Body(default_factory=dict)) -> dict:
+        orch = getattr(ctx, "orchestrator", None)
+        if orch is None:
+            raise HTTPException(status_code=503, detail="orchestrator-not-attached")
+        return await orch.reconfigure(
+            guardrails_enabled=body.get("guardrails_enabled"),
+            sta_mode=body.get("sta_mode"),
+            scenario=body.get("scenario"),
+        )
 
     # ── attack sessions ──────────────────────────────────────────────────
     @app.post("/attack/session/start", response_model=SessionStartResponse)

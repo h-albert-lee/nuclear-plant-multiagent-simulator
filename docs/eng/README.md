@@ -19,6 +19,7 @@ are abstractions based on public references.
 | [`05_result_analysis.md`](05_result_analysis.md) | Analysts | How to read `runs/{id}/`, JSONL files, and `report.md` |
 | [`06_troubleshooting.md`](06_troubleshooting.md) | Operators | Common issues and fixes |
 | [`07_test_scenario_catalog.md`](07_test_scenario_catalog.md) | Developers/researchers | Verification and experiment checklist |
+| [`08_benchmark_replay.md`](08_benchmark_replay.md) | Red-team researchers | Replay the public **NRT-Bench** HF dataset against this simulator with **your** operator-model stack — no external redteam agent required |
 
 ## System Overview
 

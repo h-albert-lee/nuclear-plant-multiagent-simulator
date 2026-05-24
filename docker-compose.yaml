@@ -7,6 +7,7 @@ services:
     networks:
       - nuclear_sim_net
       - llm_egress_net
+      - host_expose
     ports:
       - "8080:8080"
     volumes:
@@ -53,4 +54,6 @@ networks:
   llm_egress_net:
     internal: true
   external_net:
+    driver: bridge
+  host_expose:
     driver: bridge
